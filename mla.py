@@ -388,15 +388,22 @@ class MLA(nn.Module):
         x = self.proj_out(x)
 
         if return_debug:
-            return {
+            debug_dict = {
                 "hidden": x,
                 "latent": latent_out,
-                "scores": scores,
+                "scores": scores,  # 注意：这里是 softmax 后的 probs
                 "q_nrope_absorb": q_nrope_absorb,
                 "q_rope": q_rope,
                 "normalized_kv_latent": normalized_kv_latent,
                 "k_rope": k_rope,
             }
+            if self.use_page_cache:
+                debug_dict["stacked_kv_latent"] = stacked_kv_latent
+                debug_dict["stacked_k_rope"] = stacked_k_rope
+            else:
+                debug_dict["stacked_kv_latent"] = self.kv_latent_cache[:batch_size, :end_pos]
+                debug_dict["stacked_k_rope"] = self.k_rope_cache[:batch_size, :end_pos]
+            return debug_dict
         return x
 
 class FFN(nn.Module):
