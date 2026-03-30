@@ -170,6 +170,7 @@ class MLA(nn.Module):
         self.optim_type = optim_type
         
         self.qk_head_dim = qk_nrope_head_dim + qk_rope_head_dim
+        self.absorbed_qk_head_dim = kv_latent_rank + qk_rope_head_dim
         self.proj_kv_down = nn.Linear(dim, kv_latent_rank + qk_rope_head_dim, bias=False, dtype=dtype)
         self.proj_kv_up = nn.Linear(kv_latent_rank, num_heads * (qk_nrope_head_dim + v_head_dim), bias=False, dtype=dtype)
         self.proj_q_down = nn.Linear(dim, q_latent_rank, bias=False, dtype=dtype)
@@ -179,7 +180,7 @@ class MLA(nn.Module):
         self.rms_norm_kv_weight = torch.nn.Parameter(torch.ones(kv_latent_rank, dtype=dtype))
         self.rms_norm_q_weight = torch.nn.Parameter(torch.ones(q_latent_rank, dtype=dtype))
 
-        self.softmax_scale = 1.0 / self.qk_head_dim ** 0.5
+        self.softmax_scale = 1.0 / self.absorbed_qk_head_dim ** 0.5
         self.num_heads = num_heads
         self.kv_latent_rank = kv_latent_rank
         self.q_latent_rank = q_latent_rank
