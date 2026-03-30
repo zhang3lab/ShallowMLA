@@ -359,13 +359,16 @@ class MLA(nn.Module):
         if mask is not None:
             if self.optim_type == "triton" or ("ablation" in self.optim_type and "softmax" in self.optim_type): 
                 mask = mask.unsqueeze(1).unsqueeze(0)
+                attn_logits = scores
                 fused_mask_softmax(scores, mask)
 
             else:
                 mask = mask.unsqueeze(1).unsqueeze(0) # [1, seq_len_q, 1, seq_len_k]
                 scores += mask # [batch_size, seq_len_q, num_heads, seq_len_k]
+                attn_logits = scores
                 scores = scores.softmax(dim=-1)
         else:
+            attn_logits = scores
             scores = scores.softmax(dim=-1)
 
         # matmul cache first, then upsample the v, this reduces the computation, otherwise
@@ -396,6 +399,7 @@ class MLA(nn.Module):
                 "q_rope": q_rope,
                 "normalized_kv_latent": normalized_kv_latent,
                 "k_rope": k_rope,
+                "attn_logits": attn_logits,
             }
             if self.use_page_cache:
                 debug_dict["stacked_kv_latent"] = stacked_kv_latent
