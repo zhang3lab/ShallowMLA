@@ -225,6 +225,7 @@ class MLA(nn.Module):
         start_pos: int, # the position of the x to be placed on the cache
         freq_cis: torch.Tensor, # the precomputed freq cis for rotary embeddings
         mask: Optional[torch.Tensor] = None, # the mask for the attention, [seq_len_q, seq_len_k]
+        return_debug: bool = False,
     ):
         batch_size, seq_len, dim = x.shape
         
@@ -371,21 +372,31 @@ class MLA(nn.Module):
         # matmul on the upsampled v, which is much higher dimensional
         if self.use_page_cache:
             # reuse the already stacked kv_latent from the previous step
-            x = torch.einsum(
+            latent_out = torch.einsum(
                 "blht,btk->blhk", scores, stacked_kv_latent
             )
         else:
-            x = torch.einsum(
+            latent_out = torch.einsum(
                 "blht,btk->blhk", scores, self.kv_latent_cache[:batch_size, :end_pos]
             )
         proj_kv_up_weight_v = proj_kv_up_weight[:, -self.v_head_dim:, :]
         x = torch.einsum(
-            "blhk,hdk->blhd", x, proj_kv_up_weight_v
+            "blhk,hdk->blhd", latent_out, proj_kv_up_weight_v
         ) # [batch_size, seq_len, num_heads, v_head_dim]
 
         x = x.flatten(start_dim=2) # [batch_size, seq_len, num_heads * v_head_dim]
         x = self.proj_out(x)
 
+        if return_debug:
+            return {
+                "hidden": x,
+                "latent": latent_out,
+                "scores": scores,
+                "q_nrope_absorb": q_nrope_absorb,
+                "q_rope": q_rope,
+                "normalized_kv_latent": normalized_kv_latent,
+                "k_rope": k_rope,
+            }
         return x
 
 class FFN(nn.Module):
